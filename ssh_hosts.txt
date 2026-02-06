@@ -1,0 +1,5 @@
+# SSH Connection Manager hosts
+# Fields (tab-separated): name	host	user	port	key_path
+homebridge	192.168.86.40		22	
+bjorns-mbp	192.168.86.52		22	
+logserver	10.208.26.70		22	

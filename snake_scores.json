@@ -1,0 +1,20 @@
+{
+  "entries": [
+    {
+      "ts": "2026-02-06 14:32:28",
+      "difficulty": "Venom",
+      "score": 60,
+      "apples": 6,
+      "length": 9,
+      "duration": 50
+    },
+    {
+      "ts": "2026-02-06 14:31:30",
+      "difficulty": "Easy",
+      "score": 40,
+      "apples": 4,
+      "length": 7,
+      "duration": 35
+    }
+  ]
+}
