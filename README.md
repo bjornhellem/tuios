@@ -8,11 +8,14 @@ TuiOS is a matrix-themed terminal launcher for local TUI (text user interface) u
 - Auto-discovers local apps with `tui` in the filename.
 - Lets you launch tools from one menu.
 - Provides quick system info (time, host, user, Python version, disk, uptime).
+- Shows a global menubar in all apps with an app switcher (F1).
 
 ## Included apps and functions
 
 - `tuios_tui.py`  
   Main launcher for all TUI apps in this folder.
+  - Splash screen with TuiOS startup sound (macOS `afplay`)
+  - Global menubar + app switcher (F1)
 
 - `nmap_tui.py`  
   Interactive network scanning UI built on `nmap`.
@@ -39,9 +42,15 @@ TuiOS is a matrix-themed terminal launcher for local TUI (text user interface) u
 - `snake_tui.py`  
   Classic Snake game with difficulty levels and persistent scoreboard.
 
+- `markdown_editor_tui.py`  
+  Split-view markdown editor with live preview and file operations.
+
 - `python_editor_tui.py`  
   Matrix-themed Python code editor with syntax highlighting, cleanup, and run support.
   Features: multi-file tabs, search/replace, go-to line, and line selection with copy/cut/delete.
+
+- `menu_bar.py`  
+  Shared menubar + app switcher used by all TuiOS apps.
 
 ## Supporting files
 
@@ -67,6 +76,9 @@ python3 tuios/ssh_tui.py
 python3 tuios/system_info_tui.py
 python3 tuios/file_manager_tui.py
 python3 tuios/calendar_tui.py
+python3 tuios/markdown_editor_tui.py
+python3 tuios/python_editor_tui.py
+python3 tuios/snake_tui.py
 ```
 
 ## Dependencies
@@ -80,6 +92,7 @@ python3 tuios/calendar_tui.py
 
 - `tuios_tui.py`
   - `uptime`
+  - `afplay` (macOS only, for startup sound)
 
 - `nmap_tui.py`
   - `nmap` (required)
