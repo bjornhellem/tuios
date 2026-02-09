@@ -13,12 +13,18 @@ import tokenize
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import menu_bar
+
+APP_TITLE = "PyEdit"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
+
 INDENT_WIDTH = 4
 HELP_TEXT_LINES = [
     "File: Ctrl+S save  Ctrl+O open  Ctrl+N new  Ctrl+T tab  Ctrl+W close  Ctrl+Q quit  F7/F8 tabs",
-    "Edit: Ctrl+F find  F4 next  Ctrl+H replace  Ctrl+G goto  F2 select  F3 clear  Ctrl+C/X/D copy/cut/del  F5 run  F6 clean  F1 hide menu",
+    "Edit: Ctrl+F find  F4 next  Ctrl+H replace  Ctrl+G goto  F2 select  F3 clear  Ctrl+C/X/D copy/cut/del  F5 run  F6 clean  F12 hide menu",
 ]
-HELP_HIDDEN_TEXT = "Menu hidden. Press F1 to show."
+HELP_HIDDEN_TEXT = "Menu hidden. Press F12 to show."
 
 
 @dataclass
@@ -826,7 +832,7 @@ def handle_input(stdscr: curses.window, state: EditorState, key: int, body_h: in
             set_status(state, "Quit canceled.")
             return False
         return True
-    if key == curses.KEY_F1:
+    if key == curses.KEY_F12:
         state.show_help = not state.show_help
         set_status(state, "Menu shown." if state.show_help else "Menu hidden.")
         return False
@@ -950,6 +956,8 @@ def parse_start_path(argv: list[str]) -> Path | None:
 
 
 def app(stdscr: curses.window, start_path: Path | None) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(1)
     curses.start_color()
     curses.use_default_colors()
@@ -966,6 +974,7 @@ def app(stdscr: curses.window, start_path: Path | None) -> None:
     curses.init_pair(9, curses.COLOR_GREEN, curses.COLOR_BLACK)    # def/class names
     curses.init_pair(10, curses.COLOR_YELLOW, curses.COLOR_BLACK)  # decorators
 
+    root.keypad(True)
     stdscr.keypad(True)
 
     state = EditorState()
@@ -993,8 +1002,17 @@ def app(stdscr: curses.window, start_path: Path | None) -> None:
     try:
         while True:
             body_h, editor_w = draw(stdscr, state)
+            menu_bar.draw_menu_bar(root, APP_TITLE, False)
+            root.refresh()
             key = stdscr.getch()
             if key == -1:
+                continue
+            if key == curses.KEY_F1:
+                choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+                if choice == menu_bar.EXIT_ACTION:
+                    return
+                if isinstance(choice, Path):
+                    menu_bar.switch_to_app(choice)
                 continue
             should_quit = handle_input(stdscr, state, key, max(1, body_h), max(1, editor_w))
             if should_quit:

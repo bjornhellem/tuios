@@ -11,6 +11,12 @@ import textwrap
 from dataclasses import dataclass, field
 from pathlib import Path
 
+import menu_bar
+
+APP_TITLE = "Markdown Matrix"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
+
 
 HELP_TEXT = "F2 save  F3 open  F4 new  F10 quit  F6 switch pane"
 
@@ -545,6 +551,8 @@ def draw(stdscr: curses.window, state: EditorState) -> tuple[int, int, int, int]
 
 
 def app(stdscr: curses.window, start_path: Path | None) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(1)
     curses.start_color()
     curses.use_default_colors()
@@ -554,6 +562,7 @@ def app(stdscr: curses.window, start_path: Path | None) -> None:
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)
 
+    root.keypad(True)
     stdscr.keypad(True)
 
     state = EditorState()
@@ -572,7 +581,17 @@ def app(stdscr: curses.window, start_path: Path | None) -> None:
 
     while True:
         body_h, _, editor_text_w, max_preview_scroll = draw(stdscr, state)
+        menu_bar.draw_menu_bar(root, APP_TITLE, False)
+        root.refresh()
         key = stdscr.getch()
+
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
 
         if state.focus == "left":
             should_quit = handle_left_input(stdscr, state, key, max(1, body_h), editor_text_w)

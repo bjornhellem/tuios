@@ -10,7 +10,11 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
+import menu_bar
+
 APP_TITLE = "TuiOS Snake"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
 SCORE_FILE = Path(__file__).resolve().with_name("snake_scores.json")
 MAX_SCORES = 100
 TOP_DISPLAY = 12
@@ -22,13 +26,14 @@ class Difficulty:
     name: str
     speed_ms: int
     apple_count: int
+    obstacle_count: int
 
 
 DIFFICULTIES = [
-    Difficulty("Easy", 180, 6),
-    Difficulty("Normal", 130, 4),
-    Difficulty("Hard", 95, 3),
-    Difficulty("Venom", 65, 2),
+    Difficulty("Easy", 180, 10, 6),
+    Difficulty("Normal", 130, 8, 8),
+    Difficulty("Hard", 95, 6, 10),
+    Difficulty("Venom", 65, 5, 12),
 ]
 
 
@@ -118,6 +123,7 @@ def draw_game(
     board: tuple[int, int, int, int, int, int],
     snake: list[tuple[int, int]],
     apples: set[tuple[int, int]],
+    obstacles: set[tuple[int, int]],
     score: int,
     apples_eaten: int,
     difficulty: Difficulty,
@@ -130,6 +136,9 @@ def draw_game(
 
     board_top, board_left, board_height, board_width, _, _ = board
     draw_border(stdscr, board_top, board_left, board_height, board_width, 1)
+
+    for y, x in obstacles:
+        stdscr.addch(board_top + 1 + y, board_left + 1 + x, "#", curses.color_pair(1))
 
     for y, x in apples:
         stdscr.addch(board_top + 1 + y, board_left + 1 + x, "@", curses.color_pair(3))
@@ -145,6 +154,7 @@ def draw_game(
 def fill_apples(
     apples: set[tuple[int, int]],
     snake_cells: set[tuple[int, int]],
+    obstacles: set[tuple[int, int]],
     target_count: int,
     inner_h: int,
     inner_w: int,
@@ -155,13 +165,45 @@ def fill_apples(
         (y, x)
         for y in range(inner_h)
         for x in range(inner_w)
-        if (y, x) not in snake_cells and (y, x) not in apples
+        if (y, x) not in snake_cells and (y, x) not in apples and (y, x) not in obstacles
     ]
     if not free:
         return
     needed = min(target_count - len(apples), len(free))
     for pos in random.sample(free, needed):
         apples.add(pos)
+
+
+def generate_walls(inner_h: int, inner_w: int) -> set[tuple[int, int]]:
+    walls: set[tuple[int, int]] = set()
+    if inner_h < 10 or inner_w < 24:
+        return walls
+
+    # Two vertical pillars with gaps to form a light maze.
+    for wall_x in (inner_w // 3, (inner_w * 2) // 3):
+        gap_start = inner_h // 3
+        gap_end = gap_start + max(3, inner_h // 6)
+        for y in range(1, inner_h - 1):
+            if gap_start <= y <= gap_end:
+                continue
+            walls.add((y, wall_x))
+
+    # A small box in the lower-right quadrant.
+    box_top = inner_h // 2 + 1
+    box_left = inner_w // 2 + 2
+    box_h = max(3, inner_h // 6)
+    box_w = max(4, inner_w // 8)
+    box_bottom = min(inner_h - 2, box_top + box_h)
+    box_right = min(inner_w - 2, box_left + box_w)
+
+    for x in range(box_left, box_right + 1):
+        walls.add((box_top, x))
+        walls.add((box_bottom, x))
+    for y in range(box_top, box_bottom + 1):
+        walls.add((y, box_left))
+        walls.add((y, box_right))
+
+    return walls
 
 
 def show_resize_message(stdscr: curses.window) -> None:
@@ -191,8 +233,21 @@ def run_game(stdscr: curses.window, difficulty: Difficulty) -> dict | None:
     snake_cells = set(snake)
     direction = (0, 1)
 
+    obstacles: set[tuple[int, int]] = generate_walls(inner_h, inner_w)
+    # Add a few random blocks, away from the initial snake area and walls.
+    exclusion = {(start_y, start_x), (start_y, start_x - 1), (start_y, start_x - 2)}
+    free_cells = [
+        (y, x)
+        for y in range(inner_h)
+        for x in range(inner_w)
+        if (y, x) not in exclusion and (y, x) not in obstacles
+    ]
+    if free_cells and difficulty.obstacle_count > 0:
+        count = min(difficulty.obstacle_count, len(free_cells))
+        obstacles.update(random.sample(free_cells, count))
+
     apples: set[tuple[int, int]] = set()
-    fill_apples(apples, snake_cells, difficulty.apple_count, inner_h, inner_w)
+    fill_apples(apples, snake_cells, obstacles, difficulty.apple_count, inner_h, inner_w)
 
     score = 0
     apples_eaten = 0
@@ -200,12 +255,21 @@ def run_game(stdscr: curses.window, difficulty: Difficulty) -> dict | None:
 
     stdscr.timeout(difficulty.speed_ms)
 
-    draw_game(stdscr, board, snake, apples, score, apples_eaten, difficulty)
+    draw_game(stdscr, board, snake, apples, obstacles, score, apples_eaten, difficulty)
+    menu_bar.draw_menu_bar(stdscr, APP_TITLE, False)
+    stdscr.refresh()
 
     while True:
         key = stdscr.getch()
         if key in (ord("q"), ord("Q")):
             return None
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(stdscr, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return None
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
 
         if key == curses.KEY_UP:
             direction = (-1, 0) if direction != (1, 0) else direction
@@ -220,6 +284,8 @@ def run_game(stdscr: curses.window, difficulty: Difficulty) -> dict | None:
         next_head = (head_y + direction[0], head_x + direction[1])
 
         if not (0 <= next_head[0] < inner_h and 0 <= next_head[1] < inner_w):
+            break
+        if next_head in obstacles:
             break
 
         will_grow = next_head in apples
@@ -238,9 +304,11 @@ def run_game(stdscr: curses.window, difficulty: Difficulty) -> dict | None:
             removed = snake.pop()
             snake_cells.discard(removed)
 
-        fill_apples(apples, snake_cells, difficulty.apple_count, inner_h, inner_w)
+        fill_apples(apples, snake_cells, obstacles, difficulty.apple_count, inner_h, inner_w)
 
-        draw_game(stdscr, board, snake, apples, score, apples_eaten, difficulty)
+        draw_game(stdscr, board, snake, apples, obstacles, score, apples_eaten, difficulty)
+        menu_bar.draw_menu_bar(stdscr, APP_TITLE, False)
+        stdscr.refresh()
 
     duration = int(time.monotonic() - start_time)
     return {
@@ -259,7 +327,10 @@ def draw_difficulty_menu(stdscr: curses.window, selected: int) -> None:
 
     start_y = 5
     for idx, diff in enumerate(DIFFICULTIES):
-        label = f"{diff.name}  | Speed {diff.speed_ms}ms  | Apples {diff.apple_count}"
+        label = (
+            f"{diff.name}  | Speed {diff.speed_ms}ms  | Apples {diff.apple_count}  "
+            f"| Obstacles {diff.obstacle_count}"
+        )
         x = center_x(width, label)
         color = curses.color_pair(2) if idx == selected else curses.color_pair(1)
         marker = ">" if idx == selected else " "
@@ -274,9 +345,18 @@ def select_difficulty(stdscr: curses.window) -> Difficulty | None:
     stdscr.timeout(200)
     while True:
         draw_difficulty_menu(stdscr, selected)
+        menu_bar.draw_menu_bar(stdscr, APP_TITLE, False)
+        stdscr.refresh()
         key = stdscr.getch()
         if key in (ord("q"), ord("Q")):
             return None
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(stdscr, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return None
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
         if key in (curses.KEY_UP,):
             selected = (selected - 1) % len(DIFFICULTIES)
         elif key in (curses.KEY_DOWN,):
@@ -329,6 +409,8 @@ def show_scoreboard(stdscr: curses.window, entries: list[dict], last_entry: dict
     stdscr.timeout(-1)
     while True:
         draw_scoreboard(stdscr, entries, last_entry)
+        menu_bar.draw_menu_bar(stdscr, APP_TITLE, False)
+        stdscr.refresh()
         key = stdscr.getch()
         if key in (ord("n"), ord("N")):
             return "new"
@@ -336,6 +418,13 @@ def show_scoreboard(stdscr: curses.window, entries: list[dict], last_entry: dict
             return "difficulty"
         if key in (ord("q"), ord("Q")):
             return "quit"
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(stdscr, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return "quit"
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
 
 
 def main(stdscr: curses.window) -> None:

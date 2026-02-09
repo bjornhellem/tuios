@@ -13,8 +13,12 @@ import socket
 import subprocess
 from pathlib import Path
 
+import menu_bar
+
 APP_TITLE = "Matrix System Inspector"
 SECTIONS = ["Overview", "CPU", "GPU", "Memory", "Disk", "Network", "Processes", "Battery"]
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
 
 
 def run_cmd(args: list[str], timeout: float = 2.0) -> tuple[bool, str]:
@@ -441,6 +445,8 @@ def collect_usage() -> dict[str, tuple[float, str]]:
 
 
 def app(stdscr: curses.window) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(0)
     curses.start_color()
     curses.use_default_colors()
@@ -450,6 +456,7 @@ def app(stdscr: curses.window) -> None:
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)
 
+    root.keypad(True)
     stdscr.keypad(True)
     stdscr.timeout(1000)
 
@@ -464,6 +471,8 @@ def app(stdscr: curses.window) -> None:
         max_scroll = max(0, len(section_lines) - max(1, stdscr.getmaxyx()[0] - 6))
         scroll = max(0, min(scroll, max_scroll))
         draw_ui(stdscr, selected, section_lines, scroll, status, usage)
+        menu_bar.draw_menu_bar(root, APP_TITLE, False)
+        root.refresh()
 
         key = stdscr.getch()
 
@@ -475,6 +484,14 @@ def app(stdscr: curses.window) -> None:
 
         if key in (ord("q"), ord("Q")):
             return
+
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
 
         if key in (ord("r"), ord("R")):
             usage = collect_usage()

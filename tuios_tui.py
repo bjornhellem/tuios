@@ -17,6 +17,9 @@ import wave
 from pathlib import Path
 from tempfile import NamedTemporaryFile
 
+from chat_common import load_peers
+from chat_server import ChatServer
+
 APP_NAME = "TuiOS"
 THIS_FILE = Path(__file__).resolve()
 ROOT_DIR = THIS_FILE.parent
@@ -71,6 +74,8 @@ def get_system_info() -> list[str]:
     free_gb = disk.free / (1024**3)
     total_gb = disk.total / (1024**3)
     now = dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    peers = load_peers()
+    peer_label = format_peer_summary(peers)
     return [
         f"Time: {now}",
         f"Host: {socket.gethostname()}",
@@ -79,11 +84,24 @@ def get_system_info() -> list[str]:
         f"Platform: {platform.system()} {platform.release()}",
         f"Disk: {free_gb:.1f} GB free / {total_gb:.1f} GB",
         f"Uptime: {get_uptime_text()}",
+        peer_label,
     ]
 
 
 def center_x(width: int, text: str) -> int:
     return max(0, (width - len(text)) // 2)
+
+
+def format_peer_summary(peers: dict[str, str], max_items: int = 3) -> str:
+    names = [value.strip() for value in peers.values() if value.strip()]
+    labels = sorted(set(names))
+    if not labels:
+        return "Chat peers: 0"
+    if len(labels) <= max_items:
+        return f"Chat peers: {len(labels)} ({', '.join(labels)})"
+    remainder = len(labels) - max_items
+    preview = ", ".join(labels[:max_items])
+    return f"Chat peers: {len(labels)} ({preview}, +{remainder} more)"
 
 def generate_startup_wav(path: Path) -> None:
     sample_rate = 22050
@@ -273,67 +291,73 @@ def main(stdscr: curses.window) -> None:
     stdscr.keypad(True)
     stdscr.timeout(200)
 
+    chat_server = ChatServer()
+    _, server_msg = chat_server.start()
+
     draw_splash(stdscr)
 
     apps = scan_tui_scripts()
     menu_open = False
     selected = 0
     username = getpass.getuser()
-    status = f"Welcome {username}! Found {len(apps)} TUI script(s)."
+    status = f"Welcome {username}! Found {len(apps)} TUI script(s). {server_msg}"
 
-    while True:
-        menu_entries = to_menu_entries(apps)
-        selected = max(0, min(selected, len(menu_entries) - 1))
-        draw_desktop(stdscr, menu_open, menu_entries, selected, status)
-        key = stdscr.getch()
+    try:
+        while True:
+            menu_entries = to_menu_entries(apps)
+            selected = max(0, min(selected, len(menu_entries) - 1))
+            draw_desktop(stdscr, menu_open, menu_entries, selected, status)
+            key = stdscr.getch()
 
-        if key == -1:
-            continue
+            if key == -1:
+                continue
 
-        if key in (ord("q"), ord("Q")):
-            break
+            if key in (ord("q"), ord("Q")):
+                break
 
-        if key in (ord("r"), ord("R")):
-            apps = scan_tui_scripts()
-            selected = 0
-            status = f"App list refreshed. Found {len(apps)} TUI script(s)."
-            continue
-
-        if key in (ord("m"), ord("M")):
-            menu_open = not menu_open
-            continue
-
-        if not menu_open and key in (10, 13, curses.KEY_ENTER):
-            menu_open = True
-            continue
-
-        if not menu_open:
-            continue
-
-        if key in (27,):  # ESC
-            menu_open = False
-            continue
-        if key in (curses.KEY_UP, ord("k")):
-            selected = (selected - 1) % len(menu_entries)
-            continue
-        if key in (curses.KEY_DOWN, ord("j")):
-            selected = (selected + 1) % len(menu_entries)
-            continue
-        if key in (10, 13, curses.KEY_ENTER):
-            choice = menu_entries[selected]
-            if choice == "Refresh app list":
+            if key in (ord("r"), ord("R")):
                 apps = scan_tui_scripts()
                 selected = 0
                 status = f"App list refreshed. Found {len(apps)} TUI script(s)."
-            elif choice == "Exit TuiOS":
-                break
-            else:
-                app_path = ROOT_DIR / choice
-                if app_path.exists():
-                    status = launch_app(stdscr, app_path)
-                else:
-                    status = f"File not found: {choice}"
+                continue
+
+            if key in (ord("m"), ord("M")):
+                menu_open = not menu_open
+                continue
+
+            if not menu_open and key in (10, 13, curses.KEY_ENTER):
+                menu_open = True
+                continue
+
+            if not menu_open:
+                continue
+
+            if key in (27,):  # ESC
                 menu_open = False
+                continue
+            if key in (curses.KEY_UP, ord("k")):
+                selected = (selected - 1) % len(menu_entries)
+                continue
+            if key in (curses.KEY_DOWN, ord("j")):
+                selected = (selected + 1) % len(menu_entries)
+                continue
+            if key in (10, 13, curses.KEY_ENTER):
+                choice = menu_entries[selected]
+                if choice == "Refresh app list":
+                    apps = scan_tui_scripts()
+                    selected = 0
+                    status = f"App list refreshed. Found {len(apps)} TUI script(s)."
+                elif choice == "Exit TuiOS":
+                    break
+                else:
+                    app_path = ROOT_DIR / choice
+                    if app_path.exists():
+                        status = launch_app(stdscr, app_path)
+                    else:
+                        status = f"File not found: {choice}"
+                    menu_open = False
+    finally:
+        chat_server.stop()
 
 
 if __name__ == "__main__":

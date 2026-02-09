@@ -30,6 +30,9 @@ TuiOS is a matrix-themed terminal launcher for local TUI (text user interface) u
 - `system_info_tui.py`  
   Local system information dashboard in TUI form.
 
+- `calendar_tui.py`  
+  Matrix-themed calendar with week/month/year views, date jumping, and JSON events storage.
+
 - `file_manager_tui.py`  
   Terminal file manager with matrix-style UI for browsing and inspecting files.
 
@@ -63,6 +66,7 @@ python3 tuios/nmap_tui.py
 python3 tuios/ssh_tui.py
 python3 tuios/system_info_tui.py
 python3 tuios/file_manager_tui.py
+python3 tuios/calendar_tui.py
 ```
 
 ## Dependencies

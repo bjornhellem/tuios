@@ -1,6 +1,14 @@
 {
   "entries": [
     {
+      "ts": "2026-02-09 17:29:50",
+      "difficulty": "Easy",
+      "score": 450,
+      "apples": 45,
+      "length": 48,
+      "duration": 228
+    },
+    {
       "ts": "2026-02-06 14:32:28",
       "difficulty": "Venom",
       "score": 60,
@@ -15,6 +23,22 @@
       "apples": 4,
       "length": 7,
       "duration": 35
+    },
+    {
+      "ts": "2026-02-09 17:30:36",
+      "difficulty": "Venom",
+      "score": 40,
+      "apples": 4,
+      "length": 7,
+      "duration": 21
+    },
+    {
+      "ts": "2026-02-09 17:30:11",
+      "difficulty": "Venom",
+      "score": 0,
+      "apples": 0,
+      "length": 3,
+      "duration": 6
     }
   ]
 }

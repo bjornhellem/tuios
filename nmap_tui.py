@@ -17,6 +17,19 @@ from pathlib import Path
 from typing import Any
 import xml.etree.ElementTree as ET
 
+import menu_bar
+
+APP_TITLE = "Nmap Matrix TUI"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
+
+
+def draw_global_menu() -> None:
+    root = menu_bar.root_window()
+    if root is None:
+        return
+    menu_bar.draw_menu_bar(root, APP_TITLE, False)
+    root.refresh()
 
 PREDEFINED_SCANS = [
     ("Quick scan (fast)", ["-T4", "-F"]),
@@ -255,9 +268,17 @@ def prompt_predefined_targets(stdscr: curses.window, scan_name: str) -> tuple[li
     stdscr.addnstr(4, 2, "Choose targets: 1) Single IP/host/CIDR  2) Read targets from file", w - 4, curses.color_pair(2))
     stdscr.addnstr(5, 2, "Press B to cancel.", w - 4, curses.color_pair(2))
     stdscr.refresh()
+    draw_global_menu()
 
     key = stdscr.getch()
     if key in (ord("b"), ord("B")):
+        return [], "Scan canceled."
+    if key == curses.KEY_F1:
+        choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+        if choice == menu_bar.EXIT_ACTION:
+            return [], "Scan canceled."
+        if isinstance(choice, Path):
+            menu_bar.switch_to_app(choice)
         return [], "Scan canceled."
 
     if key == ord("1"):
@@ -309,12 +330,20 @@ def show_lines(stdscr: curses.window, title: str, lines: list[str]) -> str:
         footer = "UP/DOWN scroll  S save  B back"
         stdscr.addnstr(h - 2, 2, footer, w - 4, curses.color_pair(3))
         stdscr.refresh()
+        draw_global_menu()
 
         key = stdscr.getch()
         if key in (ord("b"), ord("B")):
             return "back"
         if key in (ord("s"), ord("S")):
             return "save"
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return "back"
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            return "back"
         if key == curses.KEY_UP and offset > 0:
             offset -= 1
         elif key == curses.KEY_DOWN and offset + body_h < len(lines):
@@ -442,6 +471,7 @@ def show_host_split_view(stdscr: curses.window, scan_result: ScanResult) -> str:
         footer = "LEFT/RIGHT switch pane  UP/DOWN move  H ssh  S save  B back"
         stdscr.addnstr(h - 2, 2, footer, w - 4, curses.color_pair(3))
         stdscr.refresh()
+        draw_global_menu()
 
         key = stdscr.getch()
         if key in (ord("b"), ord("B")):
@@ -450,6 +480,13 @@ def show_host_split_view(stdscr: curses.window, scan_result: ScanResult) -> str:
             return "save"
         if key in (ord("h"), ord("H")):
             return f"ssh:{_host_ip(hosts[selected])}"
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return "back"
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            return "back"
         if key == curses.KEY_LEFT:
             focus = "left"
         elif key == curses.KEY_RIGHT:
@@ -476,9 +513,17 @@ def save_scan_flow(stdscr: curses.window, scan_result: ScanResult) -> None:
     stdscr.addnstr(2, 2, "Choose format: 1) JSON  2) CSV", w - 4, curses.color_pair(2))
     stdscr.addnstr(3, 2, "Press B to cancel.", w - 4, curses.color_pair(2))
     stdscr.refresh()
+    draw_global_menu()
 
     key = stdscr.getch()
     if key in (ord("b"), ord("B")):
+        return
+    if key == curses.KEY_F1:
+        choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+        if choice == menu_bar.EXIT_ACTION:
+            return
+        if isinstance(choice, Path):
+            menu_bar.switch_to_app(choice)
         return
 
     if key == ord("1"):
@@ -505,7 +550,14 @@ def save_scan_flow(stdscr: curses.window, scan_result: ScanResult) -> None:
     stdscr.addnstr(2, 2, msg, w - 4, curses.color_pair(2))
     stdscr.addnstr(4, 2, "Press any key...", w - 4, curses.color_pair(3))
     stdscr.refresh()
-    stdscr.getch()
+    draw_global_menu()
+    key = stdscr.getch()
+    if key == curses.KEY_F1:
+        choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+        if choice == menu_bar.EXIT_ACTION:
+            return
+        if isinstance(choice, Path):
+            menu_bar.switch_to_app(choice)
 
 
 def build_result_lines(scan_result: ScanResult) -> list[str]:
@@ -592,6 +644,8 @@ def draw_menu(stdscr: curses.window, selected: int, status_line: str) -> None:
 
 
 def app(stdscr: curses.window) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(0)
     curses.start_color()
     curses.use_default_colors()
@@ -601,11 +655,16 @@ def app(stdscr: curses.window) -> None:
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)
 
+    root.keypad(True)
+    stdscr.keypad(True)
+
     selected = 0
     status = "Ready"
 
     while True:
         draw_menu(stdscr, selected, status)
+        menu_bar.draw_menu_bar(root, APP_TITLE, False)
+        root.refresh()
         key = stdscr.getch()
 
         max_idx = len(PREDEFINED_SCANS) + 1
@@ -615,6 +674,13 @@ def app(stdscr: curses.window) -> None:
             selected = (selected + 1) % (max_idx + 1)
         elif key in (ord("q"), ord("Q")):
             return
+        elif key == curses.KEY_F1:
+            choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
         elif key in (curses.KEY_ENTER, 10, 13):
             if selected == len(PREDEFINED_SCANS) + 1:
                 return

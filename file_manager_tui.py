@@ -10,6 +10,19 @@ import stat
 import subprocess
 from pathlib import Path
 
+import menu_bar
+
+APP_TITLE = "Matrix File Manager"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
+
+
+def draw_global_menu() -> None:
+    root = menu_bar.root_window()
+    if root is None:
+        return
+    menu_bar.draw_menu_bar(root, APP_TITLE, False)
+    root.refresh()
 MAX_TREE_DEPTH = 3
 MAX_TREE_NODES = 250
 
@@ -264,10 +277,18 @@ def view_text_file(stdscr: curses.window, path: Path) -> None:
         footer = "UP/DOWN scroll  PGUP/PGDN page  B back"
         stdscr.addnstr(h - 2, 2, footer, w - 4, curses.color_pair(3))
         stdscr.refresh()
+        draw_global_menu()
 
         key = stdscr.getch()
         if key in (ord("b"), ord("B"), 27):
             return
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
         if key == curses.KEY_UP and offset > 0:
             offset -= 1
         elif key == curses.KEY_DOWN and offset + body_h < len(lines):
@@ -284,7 +305,14 @@ def show_message(stdscr: curses.window, title: str, message: str) -> None:
     stdscr.addnstr(2, 2, message, w - 4, curses.color_pair(2))
     stdscr.addnstr(4, 2, "Press any key...", w - 4, curses.color_pair(3))
     stdscr.refresh()
-    stdscr.getch()
+    draw_global_menu()
+    key = stdscr.getch()
+    if key == curses.KEY_F1:
+        choice = menu_bar.open_menu(menu_bar.root_window(), APP_TITLE, ROOT_DIR, THIS_FILE)
+        if choice == menu_bar.EXIT_ACTION:
+            return
+        if isinstance(choice, Path):
+            menu_bar.switch_to_app(choice)
 
 
 def draw_ui(
@@ -353,6 +381,8 @@ def draw_ui(
 
 
 def app(stdscr: curses.window) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(0)
     curses.start_color()
     curses.use_default_colors()
@@ -361,6 +391,9 @@ def app(stdscr: curses.window) -> None:
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)
+
+    root.keypad(True)
+    stdscr.keypad(True)
 
     cwd = Path.cwd()
     entries: list[Path] = []
@@ -386,10 +419,19 @@ def app(stdscr: curses.window) -> None:
             list_offset = selected - body_h + 1
 
         draw_ui(stdscr, cwd, entries, selected, list_offset, status, clipboard, clipboard_mode)
+        menu_bar.draw_menu_bar(root, APP_TITLE, False)
+        root.refresh()
         key = stdscr.getch()
 
         if key in (ord("q"), ord("Q")):
             return
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
         if key == curses.KEY_UP and selected > 0:
             selected -= 1
             status = ""

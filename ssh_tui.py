@@ -9,6 +9,11 @@ import subprocess
 from dataclasses import dataclass
 from pathlib import Path
 
+import menu_bar
+
+APP_TITLE = "SSH Matrix TUI"
+THIS_FILE = Path(__file__).resolve()
+ROOT_DIR = THIS_FILE.parent
 HOSTS_FILE = Path(__file__).resolve().parent / "ssh_hosts.txt"
 
 
@@ -326,6 +331,8 @@ def delete_connection_flow(stdscr: curses.window, connections: list[SSHConnectio
 
 
 def app(stdscr: curses.window) -> None:
+    root = stdscr
+    stdscr = menu_bar.content_window(root)
     curses.curs_set(0)
     curses.start_color()
     curses.use_default_colors()
@@ -333,6 +340,9 @@ def app(stdscr: curses.window) -> None:
     curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(2, curses.COLOR_GREEN, curses.COLOR_BLACK)
     curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_GREEN)
+
+    root.keypad(True)
+    stdscr.keypad(True)
 
     connections, warning = load_connections()
     selected = 0
@@ -343,10 +353,19 @@ def app(stdscr: curses.window) -> None:
             selected = max(0, len(connections) - 1)
 
         draw_menu(stdscr, connections, selected, status)
+        menu_bar.draw_menu_bar(root, APP_TITLE, False)
+        root.refresh()
         key = stdscr.getch()
 
         if key in (ord("x"), ord("X")):
             return
+        if key == curses.KEY_F1:
+            choice = menu_bar.open_menu(root, APP_TITLE, ROOT_DIR, THIS_FILE)
+            if choice == menu_bar.EXIT_ACTION:
+                return
+            if isinstance(choice, Path):
+                menu_bar.switch_to_app(choice)
+            continue
         if key == curses.KEY_UP and connections:
             selected = (selected - 1) % len(connections)
             continue
