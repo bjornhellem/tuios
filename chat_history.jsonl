@@ -1,0 +1,2 @@
+{"direction": "in", "ip": "192.168.86.56", "nickname": "mba", "message": "Hello", "timestamp": "2026-02-09T18:07:42"}
+{"timestamp": "2026-02-09T18:08:02", "direction": "out", "ip": "192.168.86.56", "nickname": "Bjorn", "message": "Hi!"}

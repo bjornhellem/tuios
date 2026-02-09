@@ -1,0 +1,38 @@
+[
+  {
+    "id": "EVT20260209144928781540",
+    "title": "Fris\u00f8rtime",
+    "date": "2026-02-09",
+    "start": "16:00",
+    "end": "16:30",
+    "all_day": false,
+    "notes": "P\u00e5 h\u00e5ret fris\u00f8r"
+  },
+  {
+    "id": "EVT20260209145014073679",
+    "title": "Test event",
+    "date": "2026-02-12",
+    "start": "12:00",
+    "end": "13:00",
+    "all_day": false,
+    "notes": "Testing"
+  },
+  {
+    "id": "EVT20260209145112583161",
+    "title": "Sikkerhetswebinar",
+    "date": "2026-03-11",
+    "start": "17:30",
+    "end": "18:00",
+    "all_day": false,
+    "notes": "wersgfasdgsdf"
+  },
+  {
+    "id": "EVT20260209150427806214",
+    "title": "Test2",
+    "date": "2026-02-09",
+    "start": "18:00",
+    "end": "18:30",
+    "all_day": false,
+    "notes": null
+  }
+]
