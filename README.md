@@ -39,6 +39,9 @@ TuiOS is a matrix-themed terminal launcher for local TUI (text user interface) u
 - `file_manager_tui.py`  
   Terminal file manager with matrix-style UI for browsing and inspecting files.
 
+- `chat_tui.py`  
+  Terminal chat client in the same Matrix-themed style.
+
 - `snake_tui.py`  
   Classic Snake game with difficulty levels and persistent scoreboard.
 
